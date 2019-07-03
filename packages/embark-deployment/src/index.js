@@ -70,20 +70,32 @@ class DeployManager {
                 if (typeof result === 'function') {
                   callback = result;
                 }
-                contract._gasLimit = self.gasLimit;
-                contract._skipGasEstimations = self.skipGasEstimations;
-                self.events.request('deploy:contract', contract, (err) => {
-                  if (err) {
-                    contract.error = err.message || err;
-                    if (contract.error === constants.blockchain.gasAllowanceError) {
-                      self.logger.error(`[${contract.className}]: ${constants.blockchain.gasAllowanceErrorMessage}`);
+                if (contract.addressHandler && typeof contract.addressHandler === 'function') {
+                  self.plugins.runActionsForEvent('contract:address:handler', {contract}, (err, address) => {
+                    if (err) {
+                      errors.push(err);
                     } else {
-                      self.logger.error(`[${contract.className}]: ${err.message || err}`);
+                      contract.address = address;
+                      self.logger.info(contract.className.bold.cyan + __(' already deployed at ').green + contract.address.bold.cyan);
                     }
-                    errors.push(err);
-                  }
-                  callback();
-                });
+                    callback();
+                  });
+                } else {
+                  contract._gasLimit = self.gasLimit;
+                  contract._skipGasEstimations = self.skipGasEstimations;
+                  self.events.request('deploy:contract', contract, (err) => {
+                    if (err) {
+                      contract.error = err.message || err;
+                      if (contract.error === constants.blockchain.gasAllowanceError) {
+                        self.logger.error(`[${contract.className}]: ${constants.blockchain.gasAllowanceErrorMessage}`);
+                      } else {
+                        self.logger.error(`[${contract.className}]: ${err.message || err}`);
+                      }
+                      errors.push(err);
+                    }
+                    callback();
+                  });
+                }
               }
 
               const className = contract.className;
